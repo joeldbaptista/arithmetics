@@ -54,9 +54,12 @@ Answers are read from standard input, one per line.
 * Addition, subtraction and multiplication take a plain integer.
 * Division takes an integer division followed by its remainder, written as
   `quotient remainder/divisor`. For example, `12 / 5` is answered `2 2/5`.
-  The fraction is the raw remainder over the divisor and is never reduced, so
-  `9 / 6` is answered `1 3/6`. When the division is exact the quotient alone
-  is enough, so `9 / 3` is answered `3`, although `3 0/3` is also accepted.
+  Any fraction of equal value is accepted, so `10 / 4` takes `2 1/2`, `2 2/4`
+  and the improper form `5/2` alike. A denominator of 0 is always wrong.
+  When the division is exact the quotient alone is enough, so `9 / 3` is
+  answered `3`, although `3 0/3` is also accepted.
+  The program shows the expected answer reduced to lowest terms, so a missed
+  `9 / 6` is reported as `1 1/2`.
 * An empty line, or any reply that cannot be read as a number, skips the round.
   The round still counts as played and as wrong.
 * `q`, `quit`, or end of input ends the session early. The rounds already
@@ -101,8 +104,8 @@ appends to them afterwards.
 | `asked_at` | ISO-8601 timestamp in UTC. |
 | `operation` | The operation actually drawn, so never `A`. |
 | `left_operand`, `right_operand` | The operands, as shown. |
-| `expected`, `expected_rem` | The correct answer, and its remainder, which is 0 outside division. |
-| `given`, `given_rem` | The answer entered, both `NULL` when the round was skipped. |
+| `expected`, `expected_rem` | The correct answer, and its remainder over `right_operand`, unreduced and 0 outside division. |
+| `given`, `given_rem`, `given_den` | The answer entered, as its whole part, remainder and denominator. The denominator repeats the divisor outside division and whenever no fraction was typed. All three are `NULL` when the round was skipped. |
 | `correct` | 1 when the answer matched, 0 otherwise. |
 | `elapsed_ms` | Time taken to answer, in milliseconds. |
 

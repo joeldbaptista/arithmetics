@@ -37,19 +37,21 @@ static const char schema[] =
 	"  expected_rem  INTEGER NOT NULL DEFAULT 0,"
 	"  given         INTEGER,"
 	"  given_rem     INTEGER,"
+	"  given_den     INTEGER,"
 	"  correct       INTEGER NOT NULL,"
 	"  elapsed_ms    INTEGER NOT NULL"
 	");"
 	"CREATE INDEX IF NOT EXISTS answers_session_idx"
 	" ON answers(session_id);";
 
-/* Remainder columns are newer than the first schema, so add them to a
+/* The remainder columns are newer than the first schema, so add them to a
    database written before they existed. The error of an existing column is
    expected and therefore ignored. */
 static const char migration[] =
 	"ALTER TABLE answers ADD COLUMN expected_rem INTEGER NOT NULL"
 	" DEFAULT 0;"
-	"ALTER TABLE answers ADD COLUMN given_rem INTEGER;";
+	"ALTER TABLE answers ADD COLUMN given_rem INTEGER;"
+	"ALTER TABLE answers ADD COLUMN given_den INTEGER;";
 
 static void nowstamp(char *buf, size_t sz);
 static int mkparents(const char *path);
@@ -157,8 +159,9 @@ addanswer(Db *db, int n, const Question *q, const Answer *a)
 	static const char sql[] =
 		"INSERT INTO answers (session_id, round_no, asked_at,"
 		" operation, left_operand, right_operand, expected,"
-		" expected_rem, given, given_rem, correct, elapsed_ms)"
-		" VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+		" expected_rem, given, given_rem, given_den, correct,"
+		" elapsed_ms)"
+		" VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
 	sqlite3_stmt *st;
 	char stamp[TIMESZ];
 	char ops[2];
@@ -183,12 +186,14 @@ addanswer(Db *db, int n, const Question *q, const Answer *a)
 	if (a->given) {
 		sqlite3_bind_int64(st, 9, a->ans);
 		sqlite3_bind_int64(st, 10, a->rem);
+		sqlite3_bind_int64(st, 11, a->den);
 	} else {
 		sqlite3_bind_null(st, 9);
 		sqlite3_bind_null(st, 10);
+		sqlite3_bind_null(st, 11);
 	}
-	sqlite3_bind_int(st, 11, a->right);
-	sqlite3_bind_int64(st, 12, a->ms);
+	sqlite3_bind_int(st, 12, a->right);
+	sqlite3_bind_int64(st, 13, a->ms);
 	rc = sqlite3_step(st);
 	sqlite3_finalize(st);
 	if (rc != SQLITE_DONE) {

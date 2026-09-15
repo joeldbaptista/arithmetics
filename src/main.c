@@ -20,6 +20,8 @@ static long nowms(void);
 static char *trim(char *s);
 static int parsenum(const char *s, long *v);
 static int parseans(const char *s, const Question *q, Answer *a);
+static int rightans(const Question *q, const Answer *a);
+static long gcd(long a, long b);
 static void fmtans(char *buf, size_t sz, const Question *q);
 static int ask(const Question *q, int n, long rounds, Answer *a);
 
@@ -35,7 +37,7 @@ usage(FILE *out)
 	        "  -M  largest operand, greater than min\n"
 	        "  -r  number of rounds, greater than 0\n"
 	        "A division is answered as quotient and remainder, so 12 / 5"
-	        " is \"2 2/5\".\n"
+	        " is \"2 2/5\";\nany fraction of equal value is accepted.\n"
 	        "Answers are read from standard input; an empty line skips a"
 	        " round and\n\"q\" ends the session early.\n");
 }
@@ -83,7 +85,8 @@ parsenum(const char *s, long *v)
 /* Read the player's reply. A division takes a mixed number, written as
    "quotient remainder/divisor"; the whole part alone is accepted when the
    remainder is 0, and the fraction alone when the quotient is 0. Every
-   other operation takes a plain integer. */
+   other operation takes a plain integer. The value is not judged here,
+   only its form. */
 static int
 parseans(const char *s, const Question *q, Answer *a)
 {
@@ -114,14 +117,48 @@ parseans(const char *s, const Question *q, Answer *a)
 	return 0;
 }
 
-/* Write the expected answer of a question in the form the player types. */
+/* Judge the reply. A division is right when the mixed number written
+   equals the quotient, so any fraction of equal value passes: 10 / 4 takes
+   "2 1/2", "2 2/4" and "5/2" alike. Cross multiplication compares the two
+   values without leaving the integers. */
+static int
+rightans(const Question *q, const Answer *a)
+{
+	if (!a->given)
+		return 0;
+	if (q->op != OPDIV)
+		return a->ans == q->ans;
+	if (a->den <= 0)
+		return 0;
+	return (a->ans * a->den + a->rem) * q->rhs == q->lhs * a->den;
+}
+
+static long
+gcd(long a, long b)
+{
+	long t;
+
+	while (b) {
+		t = b;
+		b = a % b;
+		a = t;
+	}
+	return a;
+}
+
+/* Write the expected answer of a question in the form the player types,
+   with the fraction of a division reduced to its lowest terms. */
 static void
 fmtans(char *buf, size_t sz, const Question *q)
 {
-	if (q->op == OPDIV && q->rem)
-		snprintf(buf, sz, "%ld %ld/%ld", q->ans, q->rem, q->rhs);
-	else
+	long d;
+
+	if (q->op != OPDIV || !q->rem) {
 		snprintf(buf, sz, "%ld", q->ans);
+		return;
+	}
+	d = gcd(q->rem, q->rhs);
+	snprintf(buf, sz, "%ld %ld/%ld", q->ans, q->rem / d, q->rhs / d);
 }
 
 /* Put one question and read the reply. Returns 1 when the round was
@@ -147,8 +184,7 @@ ask(const Question *q, int n, long rounds, Answer *a)
 	if (!strcmp(s, "q") || !strcmp(s, "quit"))
 		return 0;
 	a->given = parseans(s, q, a) == 0;
-	a->right = a->given && a->ans == q->ans && a->rem == q->rem &&
-	           (q->op != OPDIV || a->den == q->rhs);
+	a->right = rightans(q, a);
 	if (a->right) {
 		printf("  right (%.1f s)\n", a->ms / 1000.0);
 	} else {
