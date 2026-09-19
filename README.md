@@ -5,6 +5,8 @@ arithmetic. The program asks a series of questions over a chosen operation and
 operand range, marks each answer, and records the whole session in a SQLite
 database, so past performance can be reviewed later.
 
+This project is just an excuse to play with SQLite C API. 
+
 ## Requirements
 
 * A C11 compiler.
